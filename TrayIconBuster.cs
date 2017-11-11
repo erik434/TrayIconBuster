@@ -5,12 +5,12 @@ using System.ComponentModel;
 
 namespace TrayIconBuster
 {
-    /// <summary>
+    /// <remarks>
     /// I started with https://www.codeproject.com/Articles/19620/LP-TrayIconBuster as a base, but changed it to use the icon removal method from this script:
     /// https://techforpassion.blogspot.com/2014/04/refresh-tray-icons-how-to-remove-dead-tray-icons-after-killing-program.html (he isn't sure where it came
     /// from, and I was unable to find an original source either). Using Shell_NotifyIcon(NIM_DELETE,...) seems to work better for me - the old
     /// SendMessage(hWnd, TB_DELETEBUTTON,...) call would leave a blank spot where the icon used to be, but this does not.
-    /// </summary>
+    /// </remarks>
     public static class TrayIconBuster
     {
         private const uint TB_BUTTONCOUNT = 0x0418; // WM_USER+24

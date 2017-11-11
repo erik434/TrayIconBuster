@@ -12,7 +12,7 @@ namespace TrayIconBuster
             }
             catch (Exception ex)
             {
-               Console.WriteLine($"Tray icon buster error: {ex}");
+                Utilities.Log($"Tray icon buster error: {ex}");
             }
         }
     }

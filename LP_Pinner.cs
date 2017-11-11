@@ -29,7 +29,6 @@ namespace TrayIconBuster
         /// <param name="obj"></param>
         public LP_Pinner(object obj)
         {
-            //env.log(0,"AllocPinned "+obj.GetType().Name);
             handle = GCHandle.Alloc(obj, GCHandleType.Pinned);
             ptr = handle.AddrOfPinnedObject();
         }
@@ -49,7 +48,6 @@ namespace TrayIconBuster
         {
             if (!disposed)
             {
-                //env.log(0,"Free");
                 disposed = true;
                 handle.Free();
                 ptr = IntPtr.Zero;

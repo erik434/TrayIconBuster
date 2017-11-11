@@ -8,11 +8,11 @@ namespace TrayIconBuster
         {
             try
             {
-                TrayIconBuster.RemovePhantomIcons();
+                TrayIconBuster.RemoveZombieIcons();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Tray icon buster error: {ex}");
+               Console.WriteLine($"Tray icon buster error: {ex}");
             }
         }
     }

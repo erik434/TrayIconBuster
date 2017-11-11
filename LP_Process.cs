@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -31,10 +31,10 @@ namespace TrayIconBuster
         private IntPtr hProcess;
 
         /// <summary>process ID</summary>
-        private uint ownerProcessID;
+        public readonly uint ownerProcessID;
 
         /// <summary>list of allocations in this process</summary>
-        private ArrayList allocations = new ArrayList();
+        private List<IntPtr> allocations = new List<IntPtr>();
         //================================================================================
         // structors
         //================================================================================
@@ -45,10 +45,9 @@ namespace TrayIconBuster
         public LP_Process(IntPtr hWnd)
         {
             GetWindowThreadProcessId(hWnd, ref ownerProcessID);
-            log("owner: procID=" + ownerProcessID + "=0x" + ownerProcessID.ToString("X4"));
-            hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ |
-                PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, false, ownerProcessID);
-            log("handle to owner process=" + hProcess.ToString("X8"));
+            //Utilities.Log("owner: procID=" + ownerProcessID + "=0x" + ownerProcessID.ToString("X4"));
+            hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE, false, ownerProcessID);
+            //Utilities.Log("handle to owner process=" + hProcess.ToString("X8"));
         }
 
         /// <summary>
@@ -58,7 +57,7 @@ namespace TrayIconBuster
         {
             if (hProcess != IntPtr.Zero)
             {
-                foreach (IntPtr ptr in allocations)
+                foreach (var ptr in allocations)
                 {
                     VirtualFreeEx(hProcess, ptr, 0, MEM_RELEASE);
                 }
@@ -66,28 +65,11 @@ namespace TrayIconBuster
             }
         }
 
-        private void log(string s)
-        {
-            //Console.WriteLine(s);
-        }
-
-        /// <summary>
-        /// Gets the file name of the process image.
-        /// </summary>
-        /// <returns></returns>
-        public string GetImageFileName()
-        {
-            StringBuilder sb = new StringBuilder(1024);
-            bool OK = GetProcessImageFileName(hProcess, sb, sb.Capacity - 1);
-            if (!OK) return null;
-            return sb.ToString();
-        }
-
         //================================================================================
         // memory operations
         //================================================================================
         /// <summary>
-        /// Allocates a chunck of memory in the process.
+        /// Allocates a chunk of memory in the process.
         /// The memory gets freed when the LP_Process object is disposed.
         /// </summary>
         /// <param name="managedObject"></param>
@@ -96,7 +78,7 @@ namespace TrayIconBuster
         {
             int size = Marshal.SizeOf(managedObject);
             IntPtr ptr = VirtualAllocEx(hProcess, 0, size, MEM_COMMIT, PAGE_READWRITE);
-            log("ptr=" + ptr.ToString("X8"));
+            //Utilities.Log("ptr=" + ptr.ToString("X8"));
             if (ptr != IntPtr.Zero) allocations.Add(ptr);
             return ptr;
         }
@@ -114,46 +96,8 @@ namespace TrayIconBuster
                 int size = Marshal.SizeOf(obj);
                 if (!ReadProcessMemory(hProcess, ptr, pin.Ptr, size, ref bytesRead))
                 {
-                    int err = GetLastError();
+                    int err = Marshal.GetLastWin32Error();
                     string s = "Read failed; err=" + err + "; bytesRead=" + bytesRead;
-                    throw new ApplicationException(s);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reads a string from the process memory at ptr.
-        /// </summary>
-        /// <param name="size"></param>
-        /// <param name="ptr"></param>
-        public string ReadString(int size, IntPtr ptr)
-        {
-            StringBuilder sb = new StringBuilder(size);
-            uint bytesRead = 0;
-            if (!ReadProcessMemory(hProcess, ptr, sb, size, ref bytesRead))
-            {
-                int err = GetLastError();
-                string s = "Read failed; err=" + err + "; bytesRead=" + bytesRead;
-                throw new ApplicationException(s);
-            }
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Write an object's data to the process memory at ptr.
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="ptr"></param>
-        /// <param name="size"></param>
-        public void Write(object obj, int size, IntPtr ptr)
-        {
-            using (LP_Pinner pin = new LP_Pinner(obj))
-            {
-                uint bytesWritten = 0;
-                if (!WriteProcessMemory(hProcess, ptr, pin.Ptr, size, ref bytesWritten))
-                {
-                    int err = GetLastError();
-                    string s = "Write failed; err=" + err + "; bytesWritten=" + bytesWritten;
                     throw new ApplicationException(s);
                 }
             }
@@ -168,41 +112,19 @@ namespace TrayIconBuster
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, ref uint procId);
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern IntPtr OpenProcess(uint access, bool inheritHandle,
-            uint procID);
+        private static extern IntPtr OpenProcess(uint access, bool inheritHandle, uint procID);
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern bool CloseHandle(IntPtr handle);
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern IntPtr VirtualAllocEx(IntPtr hProcess, int address,
-            int size, uint allocationType, uint protection);
+        private static extern IntPtr VirtualAllocEx(IntPtr hProcess, int address, int size, uint allocationType, uint protection);
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr address,
-            int size, uint freeType);
+        private static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr address, int size, uint freeType);
 
-        [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern bool WriteProcessMemory(IntPtr hProcess,
-            IntPtr otherAddress, IntPtr localAddress, int size,
-            ref uint bytesWritten);
-
-        [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern bool ReadProcessMemory(IntPtr hProcess,
-            IntPtr otherAddress, IntPtr localAddress, int size,
-            ref uint bytesRead);
-
-        [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern bool ReadProcessMemory(IntPtr hProcess,
-            IntPtr otherAddress, StringBuilder localAddress, int size,
-            ref uint bytesRead);
-
-        [DllImport("psapi.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern bool GetProcessImageFileName(IntPtr hProcess,
-            StringBuilder fileName, int fileNameSize);
-
-        [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
-        public static extern int GetLastError();
+        [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall, SetLastError = true)]
+        private static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr otherAddress, IntPtr localAddress, int size, ref uint bytesRead);
     }
 }
 
